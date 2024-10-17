@@ -14,6 +14,11 @@ public class ServerTCP : MonoBehaviour
     private TextMeshProUGUI UItext;
     private string serverText;
 
+    public TMP_InputField inputNickname;
+    public TMP_InputField inputIP;
+
+    private string nickname = "Server";  // Default nickname for the server.
+
     public struct User
     {
         public string name;
@@ -23,7 +28,6 @@ public class ServerTCP : MonoBehaviour
     void Start()
     {
         UItext = UItextObj.GetComponent<TextMeshProUGUI>();
-
     }
 
     void Update()
@@ -33,10 +37,14 @@ public class ServerTCP : MonoBehaviour
 
     public void startServer()
     {
-        serverText = "Starting TDP Server...";
+        nickname = inputNickname.text;  // Use nickname from input
+        string ip = inputIP.text;  // Get IP from input
+        if (string.IsNullOrEmpty(ip)) ip = "0.0.0.0";  // Default to any IP if not provided
+
+        serverText = $"Starting TCP Server at {ip}...";
 
         socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, 9050);
+        IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Parse(ip), 9050);
         socket.Bind(localEndPoint);
         socket.Listen(10);
 
@@ -50,9 +58,9 @@ public class ServerTCP : MonoBehaviour
         {
             User newUser = new User();
             newUser.name = "";
-            newUser.socket = socket.Accept(); // Accept the socket
+            newUser.socket = socket.Accept();  // Accept incoming connection
 
-            IPEndPoint clientEndPoint = (IPEndPoint)newUser.socket.LocalEndPoint;
+            IPEndPoint clientEndPoint = (IPEndPoint)newUser.socket.RemoteEndPoint;
             serverText += $"\nConnected with {clientEndPoint.Address} at port {clientEndPoint.Port}";
 
             Thread newConnection = new Thread(() => Receive(newUser));
@@ -67,27 +75,30 @@ public class ServerTCP : MonoBehaviour
 
         while (true)
         {
-            recv = user.socket.Receive(data);
-            if (recv == 0) 
-                break;
-            else
+            try
             {
-                string receivedMessage = Encoding.ASCII.GetString(data, 0, recv);
-                serverText += $"\nReceived: {receivedMessage}";
+                recv = user.socket.Receive(data);
+                if (recv == 0) break;
+                else
+                {
+                    string receivedMessage = Encoding.ASCII.GetString(data, 0, recv);
+                    serverText += $"\n{user.name}: {receivedMessage}";
 
-                // Send a ping back every time a message is received
-                Thread answer = new Thread(() => Send(user));
-                answer.Start();
+                    // Echo back the message to all users
+                    Send(user, $"Server ({nickname}): {receivedMessage}");
+                }
+            }
+            catch
+            {
+                break;
             }
         }
     }
 
-    void Send(User user)
+    public void Send(User user, string message)
     {
-        string pingMessage = "ping";
-        byte[] data = Encoding.ASCII.GetBytes(pingMessage);
-
+        byte[] data = Encoding.ASCII.GetBytes(message);
         user.socket.Send(data);
-        serverText += "\nSent: ping";
+        serverText += $"\nSent: {message}";
     }
 }
