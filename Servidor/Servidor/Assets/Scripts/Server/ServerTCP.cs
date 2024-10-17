@@ -130,5 +130,7 @@ public class ServerTCP : MonoBehaviour
         string message = $"{nickname}: {inputMessage.text}";
         serverText += $"\nSent: {message}";
         BroadcastMessage(message, new User());  // Broadcasting server's message (new User() is a dummy sender)
+
+        inputMessage.text = "";
     }
 }
