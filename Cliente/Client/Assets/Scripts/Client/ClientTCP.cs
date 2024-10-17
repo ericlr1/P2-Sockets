@@ -44,23 +44,30 @@ public class ClientTCP : MonoBehaviour
         server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         server.Connect(ipep);
 
+        // Send nickname to the server
+        SendNickname();
+
         Thread receiveThread = new Thread(Receive);
         receiveThread.Start();
 
         clientText += $"\nConnected to server at {ip}";
     }
 
+    void SendNickname()
+    {
+        byte[] data = Encoding.ASCII.GetBytes(nickname);
+        server.Send(data);
+    }
+
     public void SendMessage()
     {
-        string message = inputMessage.text;  // Get the message from input field
-        if (server != null && !string.IsNullOrEmpty(message))
-        {
-            string fullMessage = $"{nickname}: {message}";
-            byte[] data = Encoding.ASCII.GetBytes(fullMessage);
-            server.Send(data);
+        //string message = $"{nickname}: {inputMessage.text}";
+        string message = $"{inputMessage.text}";
+        byte[] data = Encoding.ASCII.GetBytes(message);
 
-            clientText += $"\nSent: {fullMessage}";
-        }
+        server.Send(data);
+        clientText += $"\nSent: {message}";
+        inputMessage.text = "";
     }
 
     void Receive()

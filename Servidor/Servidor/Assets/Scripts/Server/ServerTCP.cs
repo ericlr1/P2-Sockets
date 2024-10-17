@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using TMPro;
 using System.Text;
+using System.Collections.Generic;
 
 public class ServerTCP : MonoBehaviour
 {
@@ -16,8 +17,10 @@ public class ServerTCP : MonoBehaviour
 
     public TMP_InputField inputNickname;
     public TMP_InputField inputIP;
+    public TMP_InputField inputMessage;
 
     private string nickname = "Server";  // Default nickname for the server.
+    private List<User> connectedUsers = new List<User>();  // List of connected clients
 
     public struct User
     {
@@ -57,8 +60,10 @@ public class ServerTCP : MonoBehaviour
         while (true)
         {
             User newUser = new User();
-            newUser.name = "";
+            newUser.name = ""; // This will be assigned when the client sends its nickname
             newUser.socket = socket.Accept();  // Accept incoming connection
+
+            connectedUsers.Add(newUser);  // Add user to list of connected clients
 
             IPEndPoint clientEndPoint = (IPEndPoint)newUser.socket.RemoteEndPoint;
             serverText += $"\nConnected with {clientEndPoint.Address} at port {clientEndPoint.Port}";
@@ -82,10 +87,18 @@ public class ServerTCP : MonoBehaviour
                 else
                 {
                     string receivedMessage = Encoding.ASCII.GetString(data, 0, recv);
-                    serverText += $"\n{user.name}: {receivedMessage}";
 
-                    // Echo back the message to all users
-                    Send(user, $"Server ({nickname}): {receivedMessage}");
+                    // Check if it's the first message (nickname setup)
+                    if (string.IsNullOrEmpty(user.name))
+                    {
+                        user.name = receivedMessage;
+                        serverText += $"\nUser {user.name} has joined.";
+                    }
+                    else
+                    {
+                        serverText += $"\n{user.name}: {receivedMessage}";
+                        BroadcastMessage($"{user.name}: {receivedMessage}", user);
+                    }
                 }
             }
             catch
@@ -93,12 +106,29 @@ public class ServerTCP : MonoBehaviour
                 break;
             }
         }
+
+        // Remove user from connected list when disconnected
+        connectedUsers.Remove(user);
     }
 
-    public void Send(User user, string message)
+    // Broadcast message to all connected users
+    void BroadcastMessage(string message, User sender)
     {
         byte[] data = Encoding.ASCII.GetBytes(message);
-        user.socket.Send(data);
+        foreach (var user in connectedUsers)
+        {
+            if (user.socket != sender.socket)  // Don't send the message back to the sender
+            {
+                user.socket.Send(data);
+            }
+        }
+    }
+
+    // Server can also send a message to all clients
+    public void SendMessage()
+    {
+        string message = $"{nickname}: {inputMessage.text}";
         serverText += $"\nSent: {message}";
+        BroadcastMessage(message, new User());  // Broadcasting server's message (new User() is a dummy sender)
     }
 }
