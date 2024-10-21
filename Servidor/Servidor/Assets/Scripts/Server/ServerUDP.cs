@@ -45,6 +45,7 @@ public class ServerUDP : MonoBehaviour
         foreach (var user in connectedUsers)
         {
             sb.AppendLine(user.Value);  // Value is the username
+            Debug.Log(sb.ToString());
         }
         return sb.ToString();
     }
@@ -84,7 +85,7 @@ public class ServerUDP : MonoBehaviour
                 else
                 {
                     // New user joining the server
-                    connectedUsers[remoteEndPoint] = receivedMessage;  // Use the first message as the username
+                    connectedUsers[remoteEndPoint] = receivedMessage;
                     serverText += $"\nUser {receivedMessage} has joined from {remoteEndPoint.Address}:{remoteEndPoint.Port}";
                 }
             }

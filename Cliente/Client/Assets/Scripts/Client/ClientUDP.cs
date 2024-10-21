@@ -81,7 +81,7 @@ public class ClientUDP : MonoBehaviour
                 byte[] data = udpClient.Receive(ref fromEndPoint);
                 string receivedMessage = Encoding.ASCII.GetString(data);
 
-                clientText += $"\nReceived: {receivedMessage}";
+                clientText += $"\n{receivedMessage}";
             }
             catch
             {

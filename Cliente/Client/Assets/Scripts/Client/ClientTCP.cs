@@ -82,7 +82,7 @@ public class ClientTCP : MonoBehaviour
                 if (recv > 0)
                 {
                     string receivedMessage = Encoding.ASCII.GetString(data, 0, recv);
-                    clientText += $"\nReceived: {receivedMessage}";
+                    clientText += $"\n{receivedMessage}";
                 }
             }
             catch

@@ -25,7 +25,7 @@ public class ServerTCP : MonoBehaviour
     private string nickname = "Server";  // Default nickname for the server.
     private List<User> connectedUsers = new List<User>();  // List of connected clients
 
-    public struct User
+    public class User
     {
         public string name;
         public Socket socket;
@@ -51,6 +51,7 @@ public class ServerTCP : MonoBehaviour
         foreach (var user in connectedUsers)
         {
             sb.AppendLine(user.name);
+            Debug.Log(sb.ToString() + "//" + user.name + "//" + user.socket);
         }
         return sb.ToString();
     }
