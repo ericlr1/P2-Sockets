@@ -15,6 +15,9 @@ public class ServerTCP : MonoBehaviour
     private TextMeshProUGUI UItext;
     private string serverText;
 
+    public GameObject activeUsersObj;
+    private TextMeshProUGUI activeUsersGUI;
+
     public TMP_InputField inputNickname;
     public TMP_InputField inputIP;
     public TMP_InputField inputMessage;
@@ -31,11 +34,25 @@ public class ServerTCP : MonoBehaviour
     void Start()
     {
         UItext = UItextObj.GetComponent<TextMeshProUGUI>();
+        activeUsersGUI = activeUsersObj.GetComponent<TextMeshProUGUI>();
     }
 
     void Update()
     {
         UItext.text = serverText;
+        activeUsersGUI.text = GetConnectedUsers();
+
+    }
+
+    // Function to update the list of connected users
+    string GetConnectedUsers()
+    {
+        StringBuilder sb = new StringBuilder();
+        foreach (var user in connectedUsers)
+        {
+            sb.AppendLine(user.name);
+        }
+        return sb.ToString();
     }
 
     public void startServer()

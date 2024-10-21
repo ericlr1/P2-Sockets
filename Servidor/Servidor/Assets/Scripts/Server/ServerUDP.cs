@@ -1,70 +1,120 @@
-﻿using System.Net;
+﻿using UnityEngine;
+using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using UnityEngine;
 using System.Threading;
 using TMPro;
+using System.Text;
+using System.Collections.Generic;
 
 public class ServerUDP : MonoBehaviour
 {
-    Socket socket;
+    private UdpClient udpClient;
+    private Thread mainThread = null;
+    private IPEndPoint remoteEndPoint;
+
     public GameObject UItextObj;
-    TextMeshProUGUI UItext;
-    string serverText;
+    private TextMeshProUGUI UItext;
+    private string serverText;
+
+    public GameObject activeUsersObj;
+    private TextMeshProUGUI activeUsersGUI;
+
+    public TMP_InputField inputNickname;
+    public TMP_InputField inputIP;
+    public TMP_InputField inputMessage;
+
+    private string nickname = "Server";  // Default nickname for the server.
+    private Dictionary<IPEndPoint, string> connectedUsers = new Dictionary<IPEndPoint, string>();  // List of connected clients
 
     void Start()
     {
         UItext = UItextObj.GetComponent<TextMeshProUGUI>();
-    }
-
-    public void startServer()
-    {
-        serverText = "Starting UDP Server...";
-
-        // Crear y vincular el socket
-        IPEndPoint ipep = new IPEndPoint(IPAddress.Any, 9050);
-        socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        socket.Bind(ipep);
-
-        // Iniciar el hilo para recibir mensajes
-        Thread newConnection = new Thread(Receive);
-        newConnection.Start();
+        activeUsersGUI = activeUsersObj.GetComponent<TextMeshProUGUI>();
     }
 
     void Update()
     {
         UItext.text = serverText;
+        activeUsersGUI.text = GetConnectedUsers();
     }
 
-    void Receive()
+    // Function to update the list of connected users
+    string GetConnectedUsers()
     {
-        int recv;
-        byte[] data = new byte[1024];
+        StringBuilder sb = new StringBuilder();
+        foreach (var user in connectedUsers)
+        {
+            sb.AppendLine(user.Value);  // Value is the username
+        }
+        return sb.ToString();
+    }
 
-        serverText += "\nWaiting for new Client...";
+    public void startServer()
+    {
+        nickname = inputNickname.text;  // Use nickname from input
+        string ip = inputIP.text;  // Get IP from input
+        if (string.IsNullOrEmpty(ip)) ip = "0.0.0.0";  // Default to any IP if not provided
 
-        IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
-        EndPoint Remote = (EndPoint)sender;
+        serverText = $"Starting UDP Server at {ip}...";
+
+        udpClient = new UdpClient(new IPEndPoint(IPAddress.Parse(ip), 9050));
+
+        mainThread = new Thread(CheckNewConnections);
+        mainThread.Start();
+    }
+
+    void CheckNewConnections()
+    {
+        remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
 
         while (true)
         {
-            // Recibir mensaje
-            recv = socket.ReceiveFrom(data, ref Remote);
-            serverText += $"\nMessage received from {Remote.ToString()}: " + Encoding.ASCII.GetString(data, 0, recv);
+            try
+            {
+                byte[] data = udpClient.Receive(ref remoteEndPoint);  // Receive data
+                string receivedMessage = Encoding.ASCII.GetString(data);
 
-            // Enviar ping de respuesta
-            Thread sendThread = new Thread(() => Send(Remote));
-            sendThread.Start();
+                if (connectedUsers.ContainsKey(remoteEndPoint))
+                {
+                    // Existing user sending a message
+                    string username = connectedUsers[remoteEndPoint];
+                    serverText += $"\n{username}: {receivedMessage}";
+                    BroadcastMessage($"{username}: {receivedMessage}", remoteEndPoint);
+                }
+                else
+                {
+                    // New user joining the server
+                    connectedUsers[remoteEndPoint] = receivedMessage;  // Use the first message as the username
+                    serverText += $"\nUser {receivedMessage} has joined from {remoteEndPoint.Address}:{remoteEndPoint.Port}";
+                }
+            }
+            catch
+            {
+                serverText += "\nError receiving data.";
+            }
         }
     }
 
-    void Send(EndPoint Remote)
+    // Broadcast message to all connected users
+    void BroadcastMessage(string message, IPEndPoint senderEndPoint)
     {
-        string welcome = "Ping";
-        byte[] data = Encoding.ASCII.GetBytes(welcome);
+        byte[] data = Encoding.ASCII.GetBytes(message);
+        foreach (var user in connectedUsers)
+        {
+            if (!user.Key.Equals(senderEndPoint))  // Don't send the message back to the sender
+            {
+                udpClient.Send(data, data.Length, user.Key);
+            }
+        }
+    }
 
-        // Enviar el mensaje de ping al cliente
-        socket.SendTo(data, data.Length, SocketFlags.None, Remote);
-        serverText += $"\nSent to {Remote.ToString()}: {welcome}";
+    // Server can also send a message to all clients
+    public void SendMessage()
+    {
+        string message = $"{nickname}: {inputMessage.text}";
+        serverText += $"\nSent: {message}";
+        BroadcastMessage(message, null);  // Broadcasting server's message (null as sender)
+
+        inputMessage.text = "";
     }
 }
